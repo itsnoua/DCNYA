@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>(★‿★)</title>
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/vd-dashboard.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <!-- القائمة الجانبية -->
+        <aside class="sidebar">
+            <!-- مبدل الإدارات -->
+            <div class="dept-switcher">
+                <button class="dept-btn active" data-dept="compliance">شهادات الامتثال</button>
+                <button class="dept-btn" data-dept="visual_distortion">التشوه البصري</button>
+            </div>
+
+            <!-- محتوى إدارة الامتثال -->
+            <div id="compliance-content">
+                <div class="tabs-container">
+                    <div class="tab active" data-phase="1">المرحلة الأولى</div>
+                    <div class="tab" data-phase="2">المرحلة الثانية</div>
+                    <div class="tab" data-phase="3">شوارع الانسنه</div>
+                </div>
+
+                <!-- معلومات المرحلة المختارة -->
+                <div id="phase-info-display" class="phase-info-card" style="margin-top: var(--space-24);">
+                    <div class="info-row">
+                        <span class="info-label">نطاق البيانات:</span>
+                        <span id="display-phase-date" class="info-value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">آخر تحديث:</span>
+                        <span id="display-phase-update" class="info-value">-</span>
+                    </div>
+                </div>
+
+                <!-- الفلاتر -->
+                <div class="filters-container" style="margin-top: var(--space-24);">
+                    <div class="filter-group">
+                        <label for="municipality-select">البلدية</label>
+                        <select id="municipality-select">
+                            <option value="all">الكل</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="street-select">الشارع</label>
+                        <select id="street-select">
+                            <option value="all">الكل</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- المؤشرات -->
+                <div class="kpi-grid" style="margin-top: var(--space-32);">
+                    <div class="kpi-card full-width">
+                        <div class="kpi-title">المستهدف <span class="icon" title="تمثل الحصر الشامله لكافة الكتل العمرانيه والمضلعات المكانية الوقعه ضمن نطاق الشوارع المستهدفه بمشروع الانسنه">!</span></div>
+                        <div class="kpi-value" id="kpi-target">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">إجمالي الشهادات الصادره <span class="icon" title="تمشل كافة التراخيص الصادره اداريا بغض النظر عن دقة موقعها الجغرافي">!</span></div>
+                        <div class="kpi-value" id="kpi-total">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">المباني الحكوميه الممتثله <span class="icon" title="المباني التي تم حصرها في قائمة المباني الحكومية المستهدفة وتم التحقق من امتثالها">!</span></div>
+                        <div class="kpi-value text-green" id="kpi-gov">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">الشهادات الصادرة للطرق المستهدفة <span class="icon" title="الشهادات التي تم التحقق من مطابقتها الجغرافيه فوق اسطح المباني بدقه عاليه (ازاحه 5 متر)">!</span></div>
+                        <div class="kpi-value text-green" id="kpi-issued">-</div>
+                        <div id="kpi-issued-trend" class="kpi-trend"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title">شهادات غير صادره <span class="icon" title="المباني التي لا تمتلك سجل مرتبط بها حاليا وتعتبر الاولويه للمتابعه الميدانيه">!</span></div>
+                        <div class="kpi-value text-red" id="kpi-pending">-</div>
+                    </div>
+                </div>
+
+                <!-- الرسم البياني الدائري -->
+                <div class="chart-container" style="margin-top: var(--space-32);">
+                    <div class="chart-title">نسبة الانجاز <span class="icon" title="تحسب هذه النسبه بناء على عدد الشهادات الصادره التي تطابق جغرافيا مواقع المباني بدقه عاليه مقسومه على اجمالي عدد المباني المحصوره في نطاق الشوارع المستهدفه">!</span></div>
+                    <div class="gauge-wrapper">
+                        <svg viewBox="0 0 100 50" class="gauge">
+                            <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="12" stroke-linecap="round"/>
+                            <path class="gauge-value" id="gauge-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 126"/>
+                        </svg>
+                        <div class="gauge-percentage" id="coverage-percent">-%</div>
+                    </div>
+                    
+                    <div class="gauge-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot dot-excellent"></div>
+                            <span>75+ ممتاز</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot dot-average"></div>
+                            <span>40-75 متوسط</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot dot-weak"></div>
+                            <span>40- ضعيف</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- رسم بياني للنمو الأسبوعي -->
+                <div class="growth-chart-card" id="growth-chart-container" style="display: none; margin-top: var(--space-32);">
+                    <div class="chart-header-info">
+                        <div class="chart-title">تتبع النمو الأسبوعي</div>
+                        <div id="chart-stats-summary" class="chart-stats-summary"></div>
+                    </div>
+                    <div style="height: 180px; position: relative; margin-top: var(--space-16);">
+                        <canvas id="growthLineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- المطابقة المكانية -->
+                <div class="spatial-matching-card" style="margin-top: var(--space-32);">
+                    <div class="chart-title">
+                        <span>المطابقة المكانية</span>
+                        <span class="icon" title="تمثل نسبة الربط المكاني بين شهادات الامتثال الصادرة والمواقع الفعلية للمباني على الخريطة">!</span>
+                    </div>
+                    <div class="matching-body">
+                        <div class="highlight-box">
+                             <span class="gap-number" id="kpi-gap-v2">-</span>
+                             <span class="gap-label">الشهادات المتبقية (قيد التصحيح المكاني)</span>
+                        </div>
+                        <div class="dual-progress-container">
+                            <div class="progress-bar-container dual-color">
+                                <div class="progress-fill linked" id="spatial-progress-fill"></div>
+                            </div>
+                            <div class="progress-footer">
+                                <span class="label-gap">فجوة</span>
+                                <span class="label-percent" id="spatial-match-percent">-% مطابقة مكانية</span>
+                                <span class="label-linked">مربوط</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- دليل ألوان الخريطة -->
+                <div class="legend-card" style="margin-top: var(--space-32);">
+                    <div class="chart-title">دليل ألوان الخريطة</div>
+                    <div class="legend-list">
+                        <div class="legend-item-v2">
+                            <div class="color-box" style="background-color: #27ae60;"></div>
+                            <span>ممتثل</span>
+                        </div>
+                        <div class="legend-item-v2">
+                            <div class="color-box" style="background-color: #c0392b;"></div>
+                            <span>غير ممتثل</span>
+                        </div>
+                        <div class="legend-item-v2">
+                            <div class="color-box circle" style="background-color: #D4AF37; border: 1.5px solid #fff;"></div>
+                            <span>شهادة صادرة</span>
+                        </div>
+                        <div class="legend-item-v2">
+                            <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                <div style="width: 14px; height: 14px; background-color: #e11d48; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); position: relative; border: 1px solid #fff;">
+                                    <div style="position: absolute; width: 4px; height: 4px; background-color: #fff; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                                </div>
+                            </div>
+                            <span>مباني حكوميه</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- محتوى جانبي التشوه (فلاتر فقط) -->
+            <div id="vd-sidebar-content" style="display: none;">
+                <div class="section-title">فلاتر التشوه</div>
+                <div class="filters-container">
+                    <div class="filter-group">
+                        <label for="vd-municipality-select">البلدية</label>
+                        <select id="vd-municipality-select">
+                            <option value="all">الكل</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading-indicator">جاري تحميل البيانات...</div>
+        </aside>
+
+        <!-- منطقة العرض الرئيسية -->
+        <main class="main-viewport" id="main-viewport">
+            
+            <!-- وضع الامتثال (الخريطة كاملة) -->
+            <div id="compliance-map-container" class="map-container-wrapper">
+                <div id="map" class="map-container"></div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════
+                 Executive Visual Distortion Dashboard (Redesigned)
+                 Strategic Operation Center - Data Storytelling Layout
+            ════════════════════════════════════════════════════ -->
+            <div id="visual-distortion-dashboard" class="vd-dashboard-container" style="display: none;">
+                
+                <!-- ① Executive Header & Summary Insights -->
+                <header class="vd-header">
+                    <div class="vd-header__main">
+                    </div>
+                    <div class="vd-header__insights" id="vd-smart-insight-summary">
+                        <div class="vd-insight-pill pulse">
+                            <span class="icon">💡</span>
+                            <span class="text">يتم الآن تحليل آخر 24 ساعة من البلاغات...</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- ② Section I: The Strategic Pulse (Are we okay?) -->
+                <section class="vd-section">
+                    <div class="vd-kpi-row">
+                        <div class="vd-kpi-card total-card">
+                            <div class="vd-kpi-card__label">إجمالي البلاغات</div>
+                            <div class="vd-kpi-card__value" id="vd-kpi-total">180,931</div>
+                        </div>
+                        <div class="vd-kpi-card policy-card">
+                            <div class="vd-kpi-card__label">إجمالي التصنيف الرقابي</div>
+                            <div class="vd-kpi-card__value" id="vd-kpi-policy">-</div>
+                        </div>
+                        <div class="vd-kpi-card resource-card">
+                            <div class="vd-kpi-card__label">إجمالي التصنيف الخدمي</div>
+                            <div class="vd-kpi-card__value" id="vd-kpi-resource">-</div>
+                        </div>
+                        <div class="vd-kpi-card success">
+                            <div class="vd-kpi-card__label">نسبة الإنجاز</div>
+                            <div class="vd-kpi-card__value" id="vd-kpi-sla">-%</div>
+                            <div class="vd-kpi-card__progress">
+                                <div class="progress-bar"><div class="progress-fill" id="vd-sla-progress"></div></div>
+                            </div>
+                        </div>
+                        <div class="vd-kpi-card warning">
+                            <div class="vd-kpi-card__label">مؤشر نزاهة البيانات</div>
+                            <div class="vd-kpi-card__value" id="vd-kpi-integrity">-%</div>
+                            <div class="vd-kpi-card__desc" id="vd-kpi-fake-desc">جاري فحص الشبهات...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ③ Section II: Interactive Analysis (Matrix & Drill-down) -->
+                <div class="vd-interactive-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px;">
+                    <section class="vd-card vd-card--heatmap">
+                        <div class="vd-card__header">
+                            <h3 class="vd-card__title">مصفوفة التكرار</h3>
+                        </div>
+                        <div id="vd-heatmap-container" style="padding: 20px; overflow-x: auto;">
+                        </div>
+                    </section>
+
+                    <section class="vd-card vd-card--rankings">
+                        <div class="vd-card__header">
+                            <h3 class="vd-card__title" id="vd-rankings-title">تفاصيل التكرار</h3>
+                        </div>
+                        <div id="vd-worst-locations-list" class="vd-rankings-list" style="padding: 10px;">
+                        </div>
+                    </section>
+                </div>
+
+                <div class="vd-secondary-grid" style="margin-top: var(--space-24);">
+                    <section class="vd-card">
+                        <div class="vd-card__header">
+                            <h3 class="vd-card__title">تحليل مسببات التشوه</h3>
+                        </div>
+                        <div class="vd-chart-container" style="height: 300px;">
+                            <canvas id="vdCausesPieChart"></canvas>
+                        </div>
+                    </section>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
